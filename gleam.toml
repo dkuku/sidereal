@@ -1,0 +1,16 @@
+name = "sidereal"
+version = "1.0.0"
+
+description = "A comprehensive calendar library for Gleam with date, time, datetime operations and ISO 8601 support"
+licences = ["Apache-2.0"]
+repository = { type = "github", user = "dkuku", repo = "sidereal" }
+links = [{ title = "Repository", href = "https://github.com/dkuku/sidereal" }]
+
+# Package metadata for Hex
+exclude_dirs = ["optional_modules"]
+
+[dependencies]
+gleam_stdlib = ">= 0.44.0 and < 2.0.0"
+
+[dev-dependencies]
+gleeunit = ">= 1.0.0 and < 2.0.0"
