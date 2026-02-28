@@ -1,7 +1,7 @@
 name = "sidereal"
 version = "1.0.0"
 
-description = "A comprehensive calendar library for Gleam with date, time, datetime operations and ISO 8601 support"
+description = "A comprehensive calendar library for Gleam — date, time, datetime, naive datetime, duration, ISO 8601 parsing and formatting, timezone support. Port of Elixir's Calendar modules."
 licences = ["Apache-2.0"]
 repository = { type = "github", user = "dkuku", repo = "sidereal" }
 links = [{ title = "Repository", href = "https://github.com/dkuku/sidereal" }]
