@@ -735,3 +735,372 @@ pub fn from_date_and_time_test() {
     _, _ -> panic as "Expected valid date and time"
   }
 }
+
+// ISO 8601 parsing tests
+
+pub fn from_iso8601_utc_test() {
+  let result = datetime.from_iso8601("2024-03-15T12:34:56Z")
+  case result {
+    Ok(dt) -> {
+      dt.year |> should.equal(2024)
+      dt.month |> should.equal(3)
+      dt.day |> should.equal(15)
+      dt.hour |> should.equal(12)
+      dt.minute |> should.equal(34)
+      dt.second |> should.equal(56)
+      dt.time_zone |> should.equal("Etc/UTC")
+    }
+    Error(_) -> panic as "Expected valid ISO8601 UTC datetime parse"
+  }
+}
+
+pub fn from_iso8601_with_positive_offset_test() {
+  let result = datetime.from_iso8601("2024-03-15T12:34:56+05:30")
+  case result {
+    Ok(dt) -> {
+      dt.year |> should.equal(2024)
+      dt.hour |> should.equal(12)
+      dt.utc_offset |> should.equal(19_800)
+    }
+    Error(_) -> panic as "Expected valid ISO8601 datetime with positive offset"
+  }
+}
+
+pub fn from_iso8601_with_negative_offset_test() {
+  let result = datetime.from_iso8601("2024-03-15T12:34:56-05:00")
+  case result {
+    Ok(dt) -> {
+      dt.year |> should.equal(2024)
+      dt.hour |> should.equal(12)
+      dt.utc_offset |> should.equal(-18_000)
+    }
+    Error(_) -> panic as "Expected valid ISO8601 datetime with negative offset"
+  }
+}
+
+pub fn from_iso8601_invalid_test() {
+  let result = datetime.from_iso8601("not-a-datetime")
+  case result {
+    Ok(_) -> panic as "Expected error for invalid datetime string"
+    Error(_) -> Nil
+  }
+}
+
+pub fn from_iso8601_with_microseconds_test() {
+  let result = datetime.from_iso8601("2024-03-15T12:34:56.123456Z")
+  case result {
+    Ok(dt) -> {
+      dt.year |> should.equal(2024)
+      dt.second |> should.equal(56)
+    }
+    Error(_) -> panic as "Expected valid ISO8601 datetime with microseconds"
+  }
+}
+
+// Timestamp round-trip tests
+
+pub fn utc_timestamp_round_trip_test() {
+  let dt =
+    test_helpers.unwrap_datetime(datetime.new_utc(
+      2024,
+      6,
+      15,
+      12,
+      30,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let ts = datetime.to_utc_timestamp(dt)
+  let result = datetime.from_utc_timestamp(ts, "Etc/UTC")
+  case result {
+    Ok(dt2) -> {
+      dt2.year |> should.equal(2024)
+      dt2.month |> should.equal(6)
+      dt2.day |> should.equal(15)
+      dt2.hour |> should.equal(12)
+      dt2.minute |> should.equal(30)
+    }
+    Error(_) -> panic as "Expected valid datetime from UTC timestamp"
+  }
+}
+
+pub fn utc_timestamp_epoch_test() {
+  let dt =
+    test_helpers.unwrap_datetime(datetime.new_utc(
+      1970,
+      1,
+      1,
+      0,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let ts = datetime.to_utc_timestamp(dt)
+  ts |> should.equal(0)
+}
+
+pub fn from_unix_seconds_test() {
+  let result = datetime.from_unix(0, datetime.Second, "Calendar.ISO")
+  case result {
+    Ok(dt) -> {
+      dt.year |> should.equal(1970)
+      dt.month |> should.equal(1)
+      dt.day |> should.equal(1)
+      dt.hour |> should.equal(0)
+    }
+    Error(_) -> panic as "Expected valid datetime from unix 0"
+  }
+}
+
+pub fn to_unix_seconds_test() {
+  let dt =
+    test_helpers.unwrap_datetime(datetime.new_utc(
+      1970,
+      1,
+      1,
+      0,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  datetime.to_unix(dt, datetime.Second) |> should.equal(0)
+}
+
+pub fn from_utc_timestamp_non_utc_test() {
+  let result = datetime.from_utc_timestamp(0, "America/New_York")
+  case result {
+    Ok(_) -> panic as "Expected UtcOnlyTimeZoneDatabase error"
+    Error(datetime.UtcOnlyTimeZoneDatabase) -> Nil
+    Error(_) -> panic as "Expected UtcOnlyTimeZoneDatabase error"
+  }
+}
+
+// Erlang interop tests
+
+pub fn to_erl_test() {
+  let dt =
+    test_helpers.unwrap_datetime(datetime.new_utc(
+      2024,
+      3,
+      15,
+      12,
+      34,
+      56,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let erl = datetime.to_erl(dt)
+  erl |> should.equal(#(#(2024, 3, 15), #(12, 34, 56)))
+}
+
+pub fn from_erl_test() {
+  let result =
+    datetime.from_erl(#(#(2024, 3, 15), #(12, 34, 56)), "Etc/UTC", "UTC", 0, 0)
+  case result {
+    Ok(dt) -> {
+      dt.year |> should.equal(2024)
+      dt.month |> should.equal(3)
+      dt.day |> should.equal(15)
+      dt.hour |> should.equal(12)
+      dt.minute |> should.equal(34)
+      dt.second |> should.equal(56)
+      dt.time_zone |> should.equal("Etc/UTC")
+    }
+    Error(_) -> panic as "Expected valid datetime from Erlang tuple"
+  }
+}
+
+pub fn from_erl_invalid_test() {
+  let result =
+    datetime.from_erl(#(#(2024, 13, 1), #(12, 0, 0)), "Etc/UTC", "UTC", 0, 0)
+  case result {
+    Ok(_) -> panic as "Expected error for invalid Erlang datetime tuple"
+    Error(_) -> Nil
+  }
+}
+
+// new_utc_simple test
+
+pub fn new_utc_simple_test() {
+  let result = datetime.new_utc_simple(2024, 3, 15, 12, 34, 56)
+  case result {
+    Ok(dt) -> {
+      dt.year |> should.equal(2024)
+      dt.microsecond |> should.equal(#(0, 0))
+      dt.calendar |> should.equal("Calendar.ISO")
+      dt.time_zone |> should.equal("Etc/UTC")
+    }
+    Error(_) -> panic as "Expected valid new_utc_simple datetime"
+  }
+}
+
+// to_naive_datetime, to_date, to_time extraction tests
+
+pub fn to_naive_datetime_test() {
+  let dt =
+    test_helpers.unwrap_datetime(datetime.new_utc(
+      2024,
+      3,
+      15,
+      12,
+      34,
+      56,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let ndt = datetime.to_naive_datetime(dt)
+  ndt.year |> should.equal(2024)
+  ndt.month |> should.equal(3)
+  ndt.day |> should.equal(15)
+  ndt.hour |> should.equal(12)
+}
+
+pub fn to_date_extraction_test() {
+  let dt =
+    test_helpers.unwrap_datetime(datetime.new_utc(
+      2024,
+      3,
+      15,
+      12,
+      34,
+      56,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let d = datetime.to_date(dt)
+  d.year |> should.equal(2024)
+  d.month |> should.equal(3)
+  d.day |> should.equal(15)
+}
+
+pub fn to_time_extraction_test() {
+  let dt =
+    test_helpers.unwrap_datetime(datetime.new_utc(
+      2024,
+      3,
+      15,
+      12,
+      34,
+      56,
+      #(123_456, 6),
+      "Calendar.ISO",
+    ))
+  let t = datetime.to_time(dt)
+  t.hour |> should.equal(12)
+  t.minute |> should.equal(34)
+  t.second |> should.equal(56)
+  t.microsecond |> should.equal(#(123_456, 6))
+}
+
+// from_naive_utc test
+
+pub fn from_naive_utc_test() {
+  let assert Ok(ndt) =
+    naive_datetime.new(2024, 3, 15, 12, 0, 0, #(0, 0), "Calendar.ISO")
+  let dt = datetime.from_naive_utc(ndt)
+  dt.year |> should.equal(2024)
+  dt.time_zone |> should.equal("Etc/UTC")
+  dt.zone_abbr |> should.equal("UTC")
+  dt.utc_offset |> should.equal(0)
+}
+
+// add with units test
+
+pub fn add_with_unit_test() {
+  let dt =
+    test_helpers.unwrap_datetime(datetime.new_utc(
+      2024,
+      1,
+      1,
+      12,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let result = datetime.add(dt, 3600, datetime.Second)
+  case result {
+    Ok(dt2) -> {
+      dt2.hour |> should.equal(13)
+    }
+    Error(_) -> panic as "Expected valid datetime add"
+  }
+}
+
+// Truncate tests
+
+pub fn truncate_to_second_test() {
+  let dt =
+    test_helpers.unwrap_datetime(datetime.new_utc(
+      2024,
+      1,
+      1,
+      12,
+      34,
+      56,
+      #(123_456, 6),
+      "Calendar.ISO",
+    ))
+  let truncated = datetime.truncate(dt, 0)
+  truncated.microsecond |> should.equal(#(0, 0))
+  truncated.second |> should.equal(56)
+}
+
+pub fn truncate_to_millisecond_test() {
+  let dt =
+    test_helpers.unwrap_datetime(datetime.new_utc(
+      2024,
+      1,
+      1,
+      12,
+      34,
+      56,
+      #(123_456, 6),
+      "Calendar.ISO",
+    ))
+  let truncated = datetime.truncate(dt, 3)
+  truncated.microsecond |> should.equal(#(123_000, 3))
+}
+
+// Compare with different timezones test
+
+pub fn compare_different_tz_same_utc_test() {
+  let dt1 =
+    test_helpers.unwrap_datetime(datetime.new(
+      2024,
+      1,
+      1,
+      12,
+      0,
+      0,
+      "Etc/UTC",
+      "UTC",
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  // Same UTC time but expressed in UTC+5
+  let dt2 =
+    test_helpers.unwrap_datetime(datetime.new(
+      2024,
+      1,
+      1,
+      17,
+      0,
+      0,
+      "Asia/Karachi",
+      "PKT",
+      18_000,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let result = datetime.compare(dt1, dt2)
+  result |> should.equal(order.Eq)
+}
+
+import calendar/naive_datetime
