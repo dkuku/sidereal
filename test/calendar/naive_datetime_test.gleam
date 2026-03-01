@@ -1,6 +1,8 @@
 import calendar/date
+import calendar/duration.{Duration}
 import calendar/naive_datetime
 import calendar/time
+import gleam/list
 import gleam/order
 import gleeunit
 import gleeunit/should
@@ -1122,4 +1124,624 @@ pub fn equal_false_test() {
       "Calendar.ISO",
     ))
   naive_datetime.equal(ndt1, ndt2) |> should.equal(False)
+}
+
+// Getter tests
+
+pub fn year_getter_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      3,
+      15,
+      12,
+      34,
+      56,
+      #(123_456, 6),
+      "Calendar.ISO",
+    ))
+  naive_datetime.year(ndt) |> should.equal(2024)
+}
+
+pub fn month_getter_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      3,
+      15,
+      12,
+      34,
+      56,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  naive_datetime.month(ndt) |> should.equal(3)
+}
+
+pub fn day_getter_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      3,
+      15,
+      12,
+      34,
+      56,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  naive_datetime.day(ndt) |> should.equal(15)
+}
+
+pub fn hour_getter_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      3,
+      15,
+      12,
+      34,
+      56,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  naive_datetime.hour(ndt) |> should.equal(12)
+}
+
+pub fn minute_getter_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      3,
+      15,
+      12,
+      34,
+      56,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  naive_datetime.minute(ndt) |> should.equal(34)
+}
+
+pub fn second_getter_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      3,
+      15,
+      12,
+      34,
+      56,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  naive_datetime.second(ndt) |> should.equal(56)
+}
+
+pub fn microsecond_getter_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      3,
+      15,
+      12,
+      34,
+      56,
+      #(123_456, 6),
+      "Calendar.ISO",
+    ))
+  naive_datetime.microsecond(ndt) |> should.equal(#(123_456, 6))
+}
+
+pub fn calendar_getter_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      3,
+      15,
+      12,
+      34,
+      56,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  naive_datetime.calendar(ndt) |> should.equal("Calendar.ISO")
+}
+
+// inspect test
+
+pub fn inspect_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      3,
+      15,
+      12,
+      34,
+      56,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  naive_datetime.inspect(ndt) |> should.equal("~N[2024-03-15 12:34:56]")
+}
+
+// is_valid tests
+
+pub fn is_valid_true_test() {
+  naive_datetime.is_valid(2024, 3, 15, 12, 34, 56, #(0, 0))
+  |> should.equal(True)
+}
+
+pub fn is_valid_false_date_test() {
+  naive_datetime.is_valid(2024, 13, 1, 12, 0, 0, #(0, 0))
+  |> should.equal(False)
+}
+
+pub fn is_valid_false_time_test() {
+  naive_datetime.is_valid(2024, 1, 1, 25, 0, 0, #(0, 0))
+  |> should.equal(False)
+}
+
+// Calendar conversion tests
+
+pub fn convert_same_calendar_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      3,
+      15,
+      12,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let result = naive_datetime.convert(ndt, "Calendar.ISO")
+  case result {
+    Ok(ndt2) -> {
+      ndt2.calendar |> should.equal("Calendar.ISO")
+      ndt2.year |> should.equal(2024)
+    }
+    Error(_) -> panic as "Expected same calendar conversion to succeed"
+  }
+}
+
+pub fn convert_different_calendar_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      3,
+      15,
+      12,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let result = naive_datetime.convert(ndt, "Calendar.Other")
+  case result {
+    Ok(ndt2) -> {
+      ndt2.calendar |> should.equal("Calendar.Other")
+    }
+    Error(_) -> panic as "Expected calendar conversion to succeed"
+  }
+}
+
+pub fn convert_unchecked_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      3,
+      15,
+      12,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let ndt2 = naive_datetime.convert_unchecked(ndt, "Calendar.Other")
+  ndt2.calendar |> should.equal("Calendar.Other")
+}
+
+// day_of_year, day_of_week, week_of_year tests
+
+pub fn day_of_year_jan1_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      1,
+      1,
+      0,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  naive_datetime.day_of_year(ndt) |> should.equal(1)
+}
+
+pub fn day_of_year_dec31_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      12,
+      31,
+      0,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  naive_datetime.day_of_year(ndt) |> should.equal(366)
+}
+
+pub fn day_of_week_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      1,
+      1,
+      0,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let dow = naive_datetime.day_of_week(ndt)
+  // Should be a value between 1-7
+  should.equal(True, dow >= 1 && dow <= 7)
+}
+
+pub fn week_of_year_jan1_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      1,
+      1,
+      0,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let woy = naive_datetime.week_of_year(ndt)
+  woy |> should.equal(1)
+}
+
+pub fn week_of_year_mid_year_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      7,
+      1,
+      0,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let woy = naive_datetime.week_of_year(ndt)
+  // Should be around week 26-27
+  should.equal(True, woy >= 25 && woy <= 28)
+}
+
+// Gregorian seconds tests
+
+pub fn gregorian_seconds_round_trip_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      6,
+      15,
+      12,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let #(greg_secs, _ms) = naive_datetime.to_gregorian_seconds(ndt)
+  let result =
+    naive_datetime.from_gregorian_seconds(greg_secs, #(0, 0), "Calendar.ISO")
+  case result {
+    Ok(ndt2) -> {
+      ndt2.year |> should.equal(2024)
+      ndt2.month |> should.equal(6)
+      ndt2.day |> should.equal(15)
+      ndt2.hour |> should.equal(12)
+    }
+    Error(_) -> panic as "Expected valid Gregorian seconds round trip"
+  }
+}
+
+// Shift with Duration test
+
+pub fn shift_days_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      1,
+      1,
+      12,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let dur =
+    Duration(
+      year: 0,
+      month: 0,
+      week: 0,
+      day: 10,
+      hour: 0,
+      minute: 0,
+      second: 0,
+      microsecond: #(0, 0),
+    )
+  let result = naive_datetime.shift(ndt, dur)
+  case result {
+    Ok(ndt2) -> {
+      ndt2.day |> should.equal(11)
+      ndt2.hour |> should.equal(12)
+    }
+    Error(_) -> panic as "Expected valid naive datetime shift"
+  }
+}
+
+pub fn shift_months_and_hours_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      1,
+      15,
+      10,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let dur =
+    Duration(
+      year: 0,
+      month: 1,
+      week: 0,
+      day: 0,
+      hour: 3,
+      minute: 0,
+      second: 0,
+      microsecond: #(0, 0),
+    )
+  let result = naive_datetime.shift(ndt, dur)
+  case result {
+    Ok(ndt2) -> {
+      ndt2.month |> should.equal(2)
+      ndt2.day |> should.equal(15)
+      ndt2.hour |> should.equal(13)
+    }
+    Error(_) -> panic as "Expected valid naive datetime shift"
+  }
+}
+
+// Truncate tests
+
+pub fn truncate_to_second_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      1,
+      1,
+      12,
+      34,
+      56,
+      #(123_456, 6),
+      "Calendar.ISO",
+    ))
+  let result = naive_datetime.truncate(ndt, 0)
+  case result {
+    Ok(truncated) -> {
+      truncated.microsecond |> should.equal(#(0, 0))
+      truncated.second |> should.equal(56)
+    }
+    Error(_) -> panic as "Expected valid truncation"
+  }
+}
+
+pub fn truncate_to_millisecond_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      1,
+      1,
+      12,
+      34,
+      56,
+      #(123_456, 6),
+      "Calendar.ISO",
+    ))
+  let result = naive_datetime.truncate(ndt, 3)
+  case result {
+    Ok(truncated) -> {
+      truncated.microsecond |> should.equal(#(123_000, 3))
+    }
+    Error(_) -> panic as "Expected valid truncation"
+  }
+}
+
+// Range test
+
+pub fn range_basic_test() {
+  let ndt1 =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      1,
+      1,
+      0,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let ndt2 =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      1,
+      1,
+      3,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let result = naive_datetime.range(ndt1, ndt2, 3600)
+  // 0:00, 1:00, 2:00 = 3 entries (3:00 excluded since range is < end)
+  list.length(result) |> should.equal(3)
+}
+
+pub fn range_empty_test() {
+  let ndt1 =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      1,
+      1,
+      12,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let ndt2 =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      1,
+      1,
+      10,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let result = naive_datetime.range(ndt1, ndt2, 3600)
+  list.length(result) |> should.equal(0)
+}
+
+pub fn range_zero_step_test() {
+  let ndt1 =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      1,
+      1,
+      0,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let ndt2 =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      1,
+      1,
+      3,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let result = naive_datetime.range(ndt1, ndt2, 0)
+  list.length(result) |> should.equal(0)
+}
+
+// Replace tests
+
+pub fn replace_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      1,
+      1,
+      12,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let result = naive_datetime.replace(ndt, 2025, 6, 15, 18, 30, 45, #(0, 0))
+  case result {
+    Ok(ndt2) -> {
+      ndt2.year |> should.equal(2025)
+      ndt2.month |> should.equal(6)
+      ndt2.day |> should.equal(15)
+      ndt2.hour |> should.equal(18)
+      ndt2.minute |> should.equal(30)
+      ndt2.second |> should.equal(45)
+    }
+    Error(_) -> panic as "Expected valid replace"
+  }
+}
+
+pub fn replace_partial_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      1,
+      1,
+      12,
+      34,
+      56,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let result = naive_datetime.replace_partial(ndt, 2025, 6, 15)
+  case result {
+    Ok(ndt2) -> {
+      ndt2.year |> should.equal(2025)
+      ndt2.month |> should.equal(6)
+      ndt2.day |> should.equal(15)
+      // Time should be preserved
+      ndt2.hour |> should.equal(12)
+      ndt2.minute |> should.equal(34)
+      ndt2.second |> should.equal(56)
+    }
+    Error(_) -> panic as "Expected valid replace_partial"
+  }
+}
+
+pub fn replace_invalid_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new(
+      2024,
+      1,
+      1,
+      12,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let result = naive_datetime.replace(ndt, 2024, 13, 1, 12, 0, 0, #(0, 0))
+  case result {
+    Ok(_) -> panic as "Expected error for invalid replace"
+    Error(_) -> Nil
+  }
+}
+
+// from_iso8601_unchecked test
+
+pub fn from_iso8601_unchecked_test() {
+  let ndt = naive_datetime.from_iso8601_unchecked("2024-06-15T12:34:56")
+  ndt.year |> should.equal(2024)
+  ndt.hour |> should.equal(12)
+}
+
+// from_erl_unchecked test
+
+pub fn from_erl_unchecked_test() {
+  let ndt =
+    naive_datetime.from_erl_unchecked(
+      #(#(2024, 3, 15), #(12, 34, 56)),
+      #(0, 0),
+      "Calendar.ISO",
+    )
+  ndt.year |> should.equal(2024)
+  ndt.hour |> should.equal(12)
 }

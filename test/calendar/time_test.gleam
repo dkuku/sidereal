@@ -1,3 +1,4 @@
+import calendar/duration.{Duration}
 import calendar/time
 import gleeunit
 import gleeunit/should
@@ -444,4 +445,134 @@ pub fn truncate_to_millisecond_test() {
     test_helpers.unwrap_time(time.new(12, 34, 56, #(123_456, 6), "Calendar.ISO"))
   let truncated = time.truncate(t, 3)
   truncated.microsecond |> should.equal(#(123_000, 3))
+}
+
+// Calendar conversion tests
+
+pub fn convert_same_calendar_test() {
+  let t = test_helpers.unwrap_time(time.new(12, 0, 0, #(0, 0), "Calendar.ISO"))
+  let result = time.convert(t, "Calendar.ISO")
+  case result {
+    Ok(t2) -> {
+      t2.hour |> should.equal(12)
+      t2.calendar |> should.equal("Calendar.ISO")
+    }
+    Error(_) -> panic as "Expected same calendar conversion to succeed"
+  }
+}
+
+pub fn convert_different_calendar_test() {
+  let t = test_helpers.unwrap_time(time.new(12, 0, 0, #(0, 0), "Calendar.ISO"))
+  let result = time.convert(t, "Calendar.Other")
+  case result {
+    Ok(t2) -> {
+      t2.calendar |> should.equal("Calendar.Other")
+      t2.hour |> should.equal(12)
+    }
+    Error(_) -> panic as "Expected calendar conversion to succeed"
+  }
+}
+
+pub fn convert_unchecked_test() {
+  let t = test_helpers.unwrap_time(time.new(12, 0, 0, #(0, 0), "Calendar.ISO"))
+  let t2 = time.convert_unchecked(t, "Calendar.Other")
+  t2.calendar |> should.equal("Calendar.Other")
+  t2.hour |> should.equal(12)
+}
+
+// inspect test
+
+pub fn inspect_test() {
+  let t =
+    test_helpers.unwrap_time(time.new(12, 34, 56, #(0, 0), "Calendar.ISO"))
+  let s = time.inspect(t)
+  s |> should.equal("~T[12:34:56]")
+}
+
+pub fn inspect_with_microseconds_test() {
+  let t =
+    test_helpers.unwrap_time(time.new(1, 2, 3, #(123_456, 6), "Calendar.ISO"))
+  let s = time.inspect(t)
+  s |> should.equal("~T[01:02:03.123456]")
+}
+
+// is_valid tests
+
+pub fn is_valid_true_test() {
+  time.is_valid(12, 30, 45, #(0, 0)) |> should.equal(True)
+}
+
+pub fn is_valid_false_hour_test() {
+  time.is_valid(24, 0, 0, #(0, 0)) |> should.equal(False)
+}
+
+pub fn is_valid_false_microsecond_test() {
+  time.is_valid(12, 0, 0, #(1_000_000, 6)) |> should.equal(False)
+}
+
+// max_precision tests
+
+pub fn max_precision_second_test() {
+  time.max_precision(time.Second) |> should.equal(0)
+}
+
+pub fn max_precision_millisecond_test() {
+  time.max_precision(time.Millisecond) |> should.equal(3)
+}
+
+pub fn max_precision_microsecond_test() {
+  time.max_precision(time.Microsecond) |> should.equal(6)
+}
+
+// normalize_precision test
+
+pub fn normalize_precision_up_test() {
+  let result = time.normalize_precision(#(123, 3), 6)
+  result |> should.equal(#(123_000, 6))
+}
+
+pub fn normalize_precision_down_test() {
+  let result = time.normalize_precision(#(123_456, 6), 3)
+  result |> should.equal(#(123, 3))
+}
+
+// Shift with Duration test
+
+pub fn shift_hours_test() {
+  let t = test_helpers.unwrap_time(time.new(10, 0, 0, #(0, 0), "Calendar.ISO"))
+  let dur =
+    Duration(
+      year: 0,
+      month: 0,
+      week: 0,
+      day: 0,
+      hour: 2,
+      minute: 30,
+      second: 0,
+      microsecond: #(0, 0),
+    )
+  let result = time.shift(t, dur)
+  case result {
+    Ok(t2) -> {
+      t2.hour |> should.equal(12)
+      t2.minute |> should.equal(30)
+    }
+    Error(_) -> panic as "Expected valid time shift"
+  }
+}
+
+// new_unchecked_bang test
+
+pub fn new_unchecked_bang_valid_test() {
+  let t = time.new_unchecked_bang(12, 0, 0, #(0, 0), "Calendar.ISO")
+  t.hour |> should.equal(12)
+}
+
+// from_iso8601_unchecked test
+
+pub fn from_iso8601_unchecked_test() {
+  let t = time.from_iso8601_unchecked("23:59:59")
+  t.hour |> should.equal(23)
+  t.minute |> should.equal(59)
+  t.second |> should.equal(59)
 }

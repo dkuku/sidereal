@@ -1,5 +1,6 @@
 import calendar/date
 import calendar/datetime
+import calendar/duration.{Duration}
 import calendar/time
 import gleam/order
 import gleeunit
@@ -1101,6 +1102,331 @@ pub fn compare_different_tz_same_utc_test() {
     ))
   let result = datetime.compare(dt1, dt2)
   result |> should.equal(order.Eq)
+}
+
+// Calendar conversion tests
+
+pub fn convert_same_calendar_test() {
+  let dt =
+    test_helpers.unwrap_datetime(datetime.new_utc(
+      2024,
+      3,
+      15,
+      12,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let result = datetime.convert(dt, "Calendar.ISO")
+  case result {
+    Ok(dt2) -> {
+      dt2.calendar |> should.equal("Calendar.ISO")
+      dt2.year |> should.equal(2024)
+    }
+    Error(_) -> panic as "Expected same calendar conversion to succeed"
+  }
+}
+
+pub fn convert_different_calendar_test() {
+  let dt =
+    test_helpers.unwrap_datetime(datetime.new_utc(
+      2024,
+      3,
+      15,
+      12,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let result = datetime.convert(dt, "Calendar.Other")
+  case result {
+    Ok(dt2) -> {
+      dt2.calendar |> should.equal("Calendar.Other")
+      dt2.time_zone |> should.equal("Etc/UTC")
+    }
+    Error(_) -> panic as "Expected calendar conversion to succeed"
+  }
+}
+
+// from_naive_with_timezone test
+
+pub fn from_naive_with_timezone_test() {
+  let assert Ok(ndt) =
+    naive_datetime.new(2024, 3, 15, 12, 0, 0, #(0, 0), "Calendar.ISO")
+  let result =
+    datetime.from_naive_with_timezone(
+      ndt,
+      "America/New_York",
+      "EST",
+      -18_000,
+      0,
+    )
+  case result {
+    Ok(dt) -> {
+      dt.year |> should.equal(2024)
+      dt.time_zone |> should.equal("America/New_York")
+      dt.zone_abbr |> should.equal("EST")
+      dt.utc_offset |> should.equal(-18_000)
+    }
+    Error(_) -> panic as "Expected valid datetime from naive with timezone"
+  }
+}
+
+// from_naive_datetime test
+
+pub fn from_naive_datetime_test() {
+  let assert Ok(ndt) =
+    naive_datetime.new(2024, 3, 15, 12, 0, 0, #(0, 0), "Calendar.ISO")
+  let dt = datetime.from_naive_datetime(ndt, "Europe/London", "GMT", 0, 0)
+  dt.year |> should.equal(2024)
+  dt.time_zone |> should.equal("Europe/London")
+  dt.zone_abbr |> should.equal("GMT")
+}
+
+// new_from_date_and_time_with_tz test
+
+pub fn new_from_date_and_time_with_tz_test() {
+  let assert Ok(d) = date.new(2024, 3, 15, "Calendar.ISO")
+  let assert Ok(t) = time.new(12, 0, 0, #(0, 0), "Calendar.ISO")
+  let result =
+    datetime.new_from_date_and_time_with_tz(
+      d,
+      t,
+      "Europe/Berlin",
+      "CET",
+      3600,
+      0,
+    )
+  case result {
+    Ok(dt) -> {
+      dt.year |> should.equal(2024)
+      dt.hour |> should.equal(12)
+      dt.time_zone |> should.equal("Europe/Berlin")
+      dt.utc_offset |> should.equal(3600)
+    }
+    Error(_) -> panic as "Expected valid datetime from date and time with tz"
+  }
+}
+
+pub fn new_from_date_and_time_with_tz_incompatible_test() {
+  let assert Ok(d) = date.new(2024, 3, 15, "Calendar.ISO")
+  let assert Ok(t) = time.new(12, 0, 0, #(0, 0), "Calendar.Other")
+  let result =
+    datetime.new_from_date_and_time_with_tz(d, t, "Etc/UTC", "UTC", 0, 0)
+  case result {
+    Ok(_) -> panic as "Expected error for incompatible calendars"
+    Error(_) -> Nil
+  }
+}
+
+// shift_zone additional test
+
+pub fn shift_zone_same_zone_test() {
+  let dt =
+    test_helpers.unwrap_datetime(datetime.new(
+      2024,
+      1,
+      1,
+      12,
+      0,
+      0,
+      "Etc/UTC",
+      "UTC",
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let result = datetime.shift_zone(dt, "Etc/UTC", "UTC", 0, 0)
+  case result {
+    Ok(dt2) -> {
+      dt2.hour |> should.equal(12)
+      dt2.time_zone |> should.equal("Etc/UTC")
+    }
+    Error(_) -> panic as "Expected same zone shift to succeed"
+  }
+}
+
+// Shift with Duration test
+
+pub fn shift_duration_days_test() {
+  let dt =
+    test_helpers.unwrap_datetime(datetime.new_utc(
+      2024,
+      1,
+      1,
+      12,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let dur =
+    Duration(
+      year: 0,
+      month: 0,
+      week: 0,
+      day: 10,
+      hour: 0,
+      minute: 0,
+      second: 0,
+      microsecond: #(0, 0),
+    )
+  let result = datetime.shift(dt, dur)
+  case result {
+    Ok(dt2) -> {
+      dt2.day |> should.equal(11)
+      dt2.hour |> should.equal(12)
+    }
+    Error(_) -> panic as "Expected valid datetime shift"
+  }
+}
+
+pub fn shift_duration_months_test() {
+  let dt =
+    test_helpers.unwrap_datetime(datetime.new_utc(
+      2024,
+      1,
+      31,
+      12,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let dur =
+    Duration(
+      year: 0,
+      month: 1,
+      week: 0,
+      day: 0,
+      hour: 0,
+      minute: 0,
+      second: 0,
+      microsecond: #(0, 0),
+    )
+  let result = datetime.shift(dt, dur)
+  case result {
+    Ok(dt2) -> {
+      dt2.month |> should.equal(2)
+      // Feb 2024 has 29 days (leap year), so Jan 31 clamps to Feb 29
+      dt2.day |> should.equal(29)
+    }
+    Error(_) -> panic as "Expected valid month shift"
+  }
+}
+
+// Gregorian seconds tests
+
+pub fn gregorian_seconds_round_trip_test() {
+  let dt =
+    test_helpers.unwrap_datetime(datetime.new_utc(
+      2024,
+      6,
+      15,
+      12,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let #(greg_secs, _ms) = datetime.to_gregorian_seconds(dt)
+  let result =
+    datetime.from_gregorian_seconds(greg_secs, #(0, 0), "Calendar.ISO")
+  case result {
+    Ok(dt2) -> {
+      dt2.year |> should.equal(2024)
+      dt2.month |> should.equal(6)
+      dt2.day |> should.equal(15)
+      dt2.hour |> should.equal(12)
+    }
+    Error(_) -> panic as "Expected valid Gregorian seconds round trip"
+  }
+}
+
+// diff with different units test
+
+pub fn diff_milliseconds_test() {
+  let dt1 =
+    test_helpers.unwrap_datetime(datetime.new_utc(
+      2024,
+      1,
+      1,
+      12,
+      0,
+      1,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let dt2 =
+    test_helpers.unwrap_datetime(datetime.new_utc(
+      2024,
+      1,
+      1,
+      12,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  datetime.diff(dt1, dt2, datetime.Millisecond) |> should.equal(1000)
+}
+
+// from_iso8601_with_calendar test
+
+pub fn from_iso8601_with_calendar_test() {
+  let result =
+    datetime.from_iso8601_with_calendar(
+      "2024-03-15T12:00:00Z",
+      "Calendar.Other",
+    )
+  case result {
+    Ok(dt) -> {
+      dt.year |> should.equal(2024)
+      dt.calendar |> should.equal("Calendar.Other")
+    }
+    Error(_) -> panic as "Expected valid ISO8601 with calendar"
+  }
+}
+
+// to_iso8601_basic test
+
+pub fn to_iso8601_basic_utc_test() {
+  let dt =
+    test_helpers.unwrap_datetime(datetime.new_utc(
+      2024,
+      3,
+      15,
+      12,
+      34,
+      56,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let basic = datetime.to_iso8601_basic(dt)
+  basic |> should.equal("20240315T123456Z")
+}
+
+// to_local_timestamp test
+
+pub fn to_local_timestamp_test() {
+  let dt =
+    test_helpers.unwrap_datetime(datetime.new_utc(
+      2024,
+      1,
+      1,
+      12,
+      0,
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    ))
+  let local_ts = datetime.to_local_timestamp(dt)
+  let utc_ts = datetime.to_utc_timestamp(dt)
+  // For UTC, local and UTC timestamps should be the same
+  local_ts |> should.equal(utc_ts)
 }
 
 import calendar/naive_datetime

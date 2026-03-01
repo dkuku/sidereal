@@ -1,4 +1,5 @@
 import calendar/date
+import calendar/duration.{Duration}
 import gleam/order
 import gleeunit
 import gleeunit/should
@@ -564,4 +565,243 @@ pub fn year_of_era_bce_test() {
   let #(year, era) = date.year_of_era(d)
   year |> should.equal(2)
   era |> should.equal(0)
+}
+
+// Calendar conversion tests
+
+pub fn convert_same_calendar_test() {
+  let d = test_helpers.unwrap_date(date.new_simple(2024, 3, 15))
+  let result = date.convert(d, "Calendar.ISO")
+  case result {
+    Ok(d2) -> {
+      d2.year |> should.equal(2024)
+      d2.month |> should.equal(3)
+      d2.day |> should.equal(15)
+      d2.calendar |> should.equal("Calendar.ISO")
+    }
+    Error(_) -> panic as "Expected same calendar conversion to succeed"
+  }
+}
+
+pub fn convert_different_calendar_test() {
+  let d = test_helpers.unwrap_date(date.new_simple(2024, 3, 15))
+  let result = date.convert(d, "Calendar.Other")
+  case result {
+    Ok(d2) -> {
+      d2.calendar |> should.equal("Calendar.Other")
+      d2.year |> should.equal(2024)
+    }
+    Error(_) -> panic as "Expected calendar conversion to succeed"
+  }
+}
+
+// Date helper method tests
+
+pub fn leap_year_method_test() {
+  let d = test_helpers.unwrap_date(date.new_simple(2024, 1, 1))
+  date.leap_year(d) |> should.equal(True)
+}
+
+pub fn leap_year_method_false_test() {
+  let d = test_helpers.unwrap_date(date.new_simple(2023, 1, 1))
+  date.leap_year(d) |> should.equal(False)
+}
+
+pub fn days_in_month_for_date_test() {
+  let d = test_helpers.unwrap_date(date.new_simple(2024, 2, 1))
+  date.days_in_month_for_date(d) |> should.equal(29)
+}
+
+pub fn days_in_month_for_date_non_leap_test() {
+  let d = test_helpers.unwrap_date(date.new_simple(2023, 2, 1))
+  date.days_in_month_for_date(d) |> should.equal(28)
+}
+
+pub fn months_in_year_test() {
+  let d = test_helpers.unwrap_date(date.new_simple(2024, 1, 1))
+  date.months_in_year(d) |> should.equal(12)
+}
+
+// Week boundary tests
+
+pub fn beginning_of_week_test() {
+  // 2024-01-03 (Wednesday, dow=4 in this impl)
+  let d = test_helpers.unwrap_date(date.new_simple(2024, 1, 3))
+  let bow = date.beginning_of_week(d)
+  // Should go back to the start of the week
+  date.before(bow, d) |> should.equal(True)
+}
+
+pub fn end_of_week_test() {
+  let d = test_helpers.unwrap_date(date.new_simple(2024, 1, 3))
+  let eow = date.end_of_week(d)
+  date.after(eow, d) |> should.equal(True)
+}
+
+pub fn beginning_and_end_of_week_span_7_days_test() {
+  let d = test_helpers.unwrap_date(date.new_simple(2024, 1, 3))
+  let bow = date.beginning_of_week(d)
+  let eow = date.end_of_week(d)
+  date.diff(eow, bow) |> should.equal(6)
+}
+
+// Shift with Duration tests
+
+pub fn shift_days_test() {
+  let d = test_helpers.unwrap_date(date.new_simple(2024, 1, 1))
+  let dur =
+    Duration(
+      year: 0,
+      month: 0,
+      week: 0,
+      day: 10,
+      hour: 0,
+      minute: 0,
+      second: 0,
+      microsecond: #(0, 0),
+    )
+  let result = date.shift(d, dur)
+  case result {
+    Ok(d2) -> {
+      d2.month |> should.equal(1)
+      d2.day |> should.equal(11)
+    }
+    Error(_) -> panic as "Expected valid date shift"
+  }
+}
+
+pub fn shift_months_test() {
+  let d = test_helpers.unwrap_date(date.new_simple(2024, 1, 31))
+  let dur =
+    Duration(
+      year: 0,
+      month: 1,
+      week: 0,
+      day: 0,
+      hour: 0,
+      minute: 0,
+      second: 0,
+      microsecond: #(0, 0),
+    )
+  let result = date.shift(d, dur)
+  case result {
+    Ok(d2) -> {
+      d2.month |> should.equal(2)
+      // Feb doesn't have 31 days, should clamp to 29 (2024 is leap)
+      d2.day |> should.equal(29)
+    }
+    Error(_) -> panic as "Expected valid month shift"
+  }
+}
+
+pub fn shift_years_test() {
+  let d = test_helpers.unwrap_date(date.new_simple(2024, 2, 29))
+  let dur =
+    Duration(
+      year: 1,
+      month: 0,
+      week: 0,
+      day: 0,
+      hour: 0,
+      minute: 0,
+      second: 0,
+      microsecond: #(0, 0),
+    )
+  let result = date.shift(d, dur)
+  case result {
+    Ok(d2) -> {
+      d2.year |> should.equal(2025)
+      d2.month |> should.equal(2)
+      // 2025 is not leap, so Feb 29 clamps to 28
+      d2.day |> should.equal(28)
+    }
+    Error(_) -> panic as "Expected valid year shift"
+  }
+}
+
+pub fn shift_weeks_test() {
+  let d = test_helpers.unwrap_date(date.new_simple(2024, 1, 1))
+  let dur =
+    Duration(
+      year: 0,
+      month: 0,
+      week: 2,
+      day: 0,
+      hour: 0,
+      minute: 0,
+      second: 0,
+      microsecond: #(0, 0),
+    )
+  let result = date.shift(d, dur)
+  case result {
+    Ok(d2) -> {
+      d2.month |> should.equal(1)
+      d2.day |> should.equal(15)
+    }
+    Error(_) -> panic as "Expected valid week shift"
+  }
+}
+
+// ISO 8601 with calendar
+
+pub fn from_iso8601_with_calendar_test() {
+  let result = date.from_iso8601_with_calendar("2024-06-15", "Calendar.Other")
+  case result {
+    Ok(d) -> {
+      d.year |> should.equal(2024)
+      d.calendar |> should.equal("Calendar.Other")
+    }
+    Error(_) -> panic as "Expected valid ISO8601 with calendar"
+  }
+}
+
+// day_of_era test
+
+pub fn day_of_era_ce_test() {
+  let d = test_helpers.unwrap_date(date.new_simple(2024, 1, 1))
+  let #(_days, era) = date.day_of_era(d)
+  era |> should.equal(1)
+}
+
+// Range tests (date.range, not date_range module)
+
+pub fn date_range_test() {
+  let d1 = test_helpers.unwrap_date(date.new_simple(2024, 1, 1))
+  let d2 = test_helpers.unwrap_date(date.new_simple(2024, 1, 3))
+  let result = date.range(d1, d2)
+  case result {
+    Ok(dates) -> {
+      should.equal(3, case dates {
+        [_, _, _] -> 3
+        _ -> 0
+      })
+    }
+    Error(_) -> panic as "Expected valid date range"
+  }
+}
+
+pub fn date_range_with_step_test() {
+  let d1 = test_helpers.unwrap_date(date.new_simple(2024, 1, 1))
+  let d2 = test_helpers.unwrap_date(date.new_simple(2024, 1, 10))
+  let result = date.range_with_step(d1, d2, 3)
+  case result {
+    Ok(dates) -> {
+      // 1, 4, 7, 10 = 4 dates
+      should.equal(4, case dates {
+        [_, _, _, _] -> 4
+        _ -> 0
+      })
+    }
+    Error(_) -> panic as "Expected valid date range with step"
+  }
+}
+
+pub fn date_range_step_zero_test() {
+  let d1 = test_helpers.unwrap_date(date.new_simple(2024, 1, 1))
+  let d2 = test_helpers.unwrap_date(date.new_simple(2024, 1, 5))
+  let result = date.range_with_step(d1, d2, 0)
+  case result {
+    Ok(_) -> panic as "Expected error for step 0"
+    Error(_) -> Nil
+  }
 }
