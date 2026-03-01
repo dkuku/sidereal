@@ -576,3 +576,128 @@ pub fn from_iso8601_unchecked_test() {
   t.minute |> should.equal(59)
   t.second |> should.equal(59)
 }
+
+// from_seconds_after_midnight_with_microsecond tests
+
+pub fn from_seconds_after_midnight_with_microsecond_test() {
+  let result =
+    time.from_seconds_after_midnight_with_microsecond(
+      3661,
+      #(500_000, 6),
+      "Calendar.ISO",
+    )
+  case result {
+    Ok(t) -> {
+      t.hour |> should.equal(1)
+      t.minute |> should.equal(1)
+      t.second |> should.equal(1)
+      t.microsecond |> should.equal(#(500_000, 6))
+    }
+    Error(_) -> panic as "Expected Ok"
+  }
+}
+
+pub fn from_seconds_after_midnight_with_microsecond_midnight_test() {
+  let result =
+    time.from_seconds_after_midnight_with_microsecond(
+      0,
+      #(0, 0),
+      "Calendar.ISO",
+    )
+  case result {
+    Ok(t) -> {
+      t.hour |> should.equal(0)
+      t.minute |> should.equal(0)
+      t.second |> should.equal(0)
+    }
+    Error(_) -> panic as "Expected Ok"
+  }
+}
+
+pub fn from_seconds_after_midnight_with_microsecond_invalid_test() {
+  let result =
+    time.from_seconds_after_midnight_with_microsecond(
+      86_400,
+      #(0, 0),
+      "Calendar.ISO",
+    )
+  case result {
+    Ok(_) -> panic as "Expected Error for seconds >= 86400"
+    Error(_) -> Nil
+  }
+}
+
+pub fn from_seconds_after_midnight_with_microsecond_custom_cal_test() {
+  let result =
+    time.from_seconds_after_midnight_with_microsecond(
+      43_200,
+      #(123_456, 6),
+      "Custom",
+    )
+  case result {
+    Ok(t) -> {
+      t.hour |> should.equal(12)
+      t.minute |> should.equal(0)
+      t.second |> should.equal(0)
+      t.microsecond |> should.equal(#(123_456, 6))
+      t.calendar |> should.equal("Custom")
+    }
+    Error(_) -> panic as "Expected Ok"
+  }
+}
+
+// from_erl_unchecked tests
+
+pub fn from_erl_unchecked_test() {
+  let t = time.from_erl_unchecked(#(14, 30, 45), #(0, 0), "Calendar.ISO")
+  t.hour |> should.equal(14)
+  t.minute |> should.equal(30)
+  t.second |> should.equal(45)
+}
+
+pub fn from_erl_unchecked_with_microsecond_test() {
+  let t = time.from_erl_unchecked(#(8, 15, 30), #(250_000, 3), "Calendar.ISO")
+  t.hour |> should.equal(8)
+  t.minute |> should.equal(15)
+  t.second |> should.equal(30)
+  t.microsecond |> should.equal(#(250_000, 3))
+}
+
+// utc_now tests
+
+pub fn utc_now_test() {
+  let result = time.utc_now()
+  case result {
+    Ok(t) -> {
+      // Should return a valid time
+      { t.hour >= 0 && t.hour <= 23 } |> should.equal(True)
+      { t.minute >= 0 && t.minute <= 59 } |> should.equal(True)
+      { t.second >= 0 && t.second <= 59 } |> should.equal(True)
+      t.calendar |> should.equal("Calendar.ISO")
+    }
+    Error(_) -> panic as "Expected Ok for utc_now"
+  }
+}
+
+pub fn utc_now_with_precision_second_test() {
+  let result = time.utc_now_with_precision(time.Second, "Calendar.ISO")
+  case result {
+    Ok(t) -> {
+      let #(ms, precision) = t.microsecond
+      ms |> should.equal(0)
+      precision |> should.equal(0)
+    }
+    Error(_) -> panic as "Expected Ok"
+  }
+}
+
+pub fn utc_now_with_precision_millisecond_test() {
+  let result = time.utc_now_with_precision(time.Millisecond, "Calendar.ISO")
+  case result {
+    Ok(t) -> {
+      let #(_ms, precision) = t.microsecond
+      precision |> should.equal(3)
+    }
+    Error(_) -> panic as "Expected Ok"
+  }
+}

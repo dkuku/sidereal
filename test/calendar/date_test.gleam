@@ -805,3 +805,165 @@ pub fn date_range_step_zero_test() {
     Error(_) -> Nil
   }
 }
+
+// new_iso tests
+
+pub fn new_iso_test() {
+  let result = date.new_iso(2024, 6, 15)
+  case result {
+    Ok(d) -> {
+      d.year |> should.equal(2024)
+      d.month |> should.equal(6)
+      d.day |> should.equal(15)
+      d.calendar |> should.equal("Calendar.ISO")
+    }
+    Error(_) -> panic as "Expected Ok"
+  }
+}
+
+pub fn new_iso_invalid_test() {
+  let result = date.new_iso(2024, 13, 1)
+  case result {
+    Ok(_) -> panic as "Expected Error"
+    Error(_) -> Nil
+  }
+}
+
+// utc_today tests
+
+pub fn utc_today_test() {
+  let today = date.utc_today()
+  // Should return a valid date with ISO calendar
+  today.calendar |> should.equal("Calendar.ISO")
+  // Year should be reasonable (after 2024)
+  { today.year >= 2024 } |> should.equal(True)
+  // Month should be valid
+  { today.month >= 1 && today.month <= 12 } |> should.equal(True)
+  // Day should be valid
+  { today.day >= 1 && today.day <= 31 } |> should.equal(True)
+}
+
+pub fn utc_today_with_calendar_test() {
+  let today = date.utc_today_with_calendar("Custom")
+  today.calendar |> should.equal("Custom")
+  { today.year >= 2024 } |> should.equal(True)
+}
+
+// from_erl_with_calendar tests
+
+pub fn from_erl_with_calendar_test() {
+  let result = date.from_erl_with_calendar(#(2024, 3, 15), "Custom.Cal")
+  case result {
+    Ok(d) -> {
+      d.year |> should.equal(2024)
+      d.month |> should.equal(3)
+      d.day |> should.equal(15)
+      d.calendar |> should.equal("Custom.Cal")
+    }
+    Error(_) -> panic as "Expected Ok"
+  }
+}
+
+pub fn from_erl_with_calendar_invalid_test() {
+  let result = date.from_erl_with_calendar(#(2024, 2, 30), "Calendar.ISO")
+  case result {
+    Ok(_) -> panic as "Expected Error"
+    Error(_) -> Nil
+  }
+}
+
+// from_gregorian_days_with_calendar tests
+
+pub fn from_gregorian_days_with_calendar_test() {
+  // Gregorian day 719163 maps to 1970-01-01 (Unix epoch day 0)
+  let d = date.from_gregorian_days_with_calendar(719_163, "Custom.Cal")
+  d.year |> should.equal(1970)
+  d.month |> should.equal(1)
+  d.day |> should.equal(1)
+  d.calendar |> should.equal("Custom.Cal")
+}
+
+pub fn from_gregorian_days_with_calendar_roundtrip_test() {
+  let original = test_helpers.unwrap_date(date.new_simple(2024, 6, 15))
+  let days = date.to_gregorian_days(original)
+  let restored = date.from_gregorian_days_with_calendar(days, "Calendar.ISO")
+  restored.year |> should.equal(2024)
+  restored.month |> should.equal(6)
+  restored.day |> should.equal(15)
+}
+
+// day_of_week_starting_on tests
+
+pub fn day_of_week_starting_on_default_test() {
+  // 2024-01-01 is a Monday
+  // Zeller numbering: Sunday=1, Monday=2 with starting_on=1
+  let d = test_helpers.unwrap_date(date.new_simple(2024, 1, 1))
+  date.day_of_week_starting_on(d, 1) |> should.equal(2)
+}
+
+pub fn day_of_week_starting_on_sunday_test() {
+  // 2024-01-07 is a Sunday
+  let d = test_helpers.unwrap_date(date.new_simple(2024, 1, 7))
+  // With starting_on=1, Sunday=1
+  date.day_of_week_starting_on(d, 1) |> should.equal(1)
+}
+
+pub fn day_of_week_starting_on_consecutive_test() {
+  // Consecutive days should increment by 1
+  let d1 = test_helpers.unwrap_date(date.new_simple(2024, 1, 1))
+  let d2 = test_helpers.unwrap_date(date.new_simple(2024, 1, 2))
+  let dow1 = date.day_of_week_starting_on(d1, 1)
+  let dow2 = date.day_of_week_starting_on(d2, 1)
+  dow2 |> should.equal(dow1 + 1)
+}
+
+pub fn day_of_week_starting_on_range_test() {
+  // All days should be 1-7
+  let d = test_helpers.unwrap_date(date.new_simple(2024, 1, 1))
+  let dow = date.day_of_week_starting_on(d, 0)
+  { dow >= 1 && dow <= 7 } |> should.equal(True)
+}
+
+// beginning_of_week_starting_on tests
+
+pub fn beginning_of_week_starting_on_test() {
+  // 2024-01-03 is a Wednesday (dow=4 with starting_on=1, Zeller: Sun=1)
+  // Week starts on Sunday, so beginning is Sun Dec 31, 2023
+  let d = test_helpers.unwrap_date(date.new_simple(2024, 1, 3))
+  let bow = date.beginning_of_week_starting_on(d, 1)
+  bow.year |> should.equal(2023)
+  bow.month |> should.equal(12)
+  bow.day |> should.equal(31)
+}
+
+pub fn beginning_of_week_starting_on_sunday_test() {
+  // 2024-01-07 is a Sunday (dow=1 with starting_on=1)
+  // Sunday is already the start, so beginning is itself
+  let d = test_helpers.unwrap_date(date.new_simple(2024, 1, 7))
+  let bow = date.beginning_of_week_starting_on(d, 1)
+  bow.year |> should.equal(2024)
+  bow.month |> should.equal(1)
+  bow.day |> should.equal(7)
+}
+
+// end_of_week_starting_on tests
+
+pub fn end_of_week_starting_on_test() {
+  // 2024-01-03 is a Wednesday (dow=4 with starting_on=1)
+  // Week ends on Saturday (7-4=3 days later), Jan 6
+  let d = test_helpers.unwrap_date(date.new_simple(2024, 1, 3))
+  let eow = date.end_of_week_starting_on(d, 1)
+  eow.year |> should.equal(2024)
+  eow.month |> should.equal(1)
+  eow.day |> should.equal(6)
+}
+
+pub fn end_of_week_starting_on_saturday_test() {
+  // 2024-01-06 is a Saturday (dow=7 with starting_on=1)
+  // Saturday is the end, so 7-7=0 days to add, itself
+  let d = test_helpers.unwrap_date(date.new_simple(2024, 1, 6))
+  let eow = date.end_of_week_starting_on(d, 1)
+  eow.year |> should.equal(2024)
+  eow.month |> should.equal(1)
+  eow.day |> should.equal(6)
+}

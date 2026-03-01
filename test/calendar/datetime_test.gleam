@@ -1429,4 +1429,58 @@ pub fn to_local_timestamp_test() {
   local_ts |> should.equal(utc_ts)
 }
 
+// utc_now tests
+
+pub fn utc_now_dt_test() {
+  let result = datetime.utc_now()
+  case result {
+    Ok(dt) -> {
+      { dt.year >= 2024 } |> should.equal(True)
+      dt.time_zone |> should.equal("Etc/UTC")
+      dt.zone_abbr |> should.equal("UTC")
+      dt.utc_offset |> should.equal(0)
+      dt.std_offset |> should.equal(0)
+      { dt.hour >= 0 && dt.hour <= 23 } |> should.equal(True)
+    }
+    Error(_) -> panic as "Expected Ok for utc_now"
+  }
+}
+
+pub fn utc_now_with_precision_second_dt_test() {
+  let result = datetime.utc_now_with_precision(datetime.Second, "Calendar.ISO")
+  case result {
+    Ok(dt) -> {
+      dt.time_zone |> should.equal("Etc/UTC")
+      { dt.year >= 2024 } |> should.equal(True)
+    }
+    Error(_) -> panic as "Expected Ok"
+  }
+}
+
+pub fn utc_now_with_precision_millisecond_dt_test() {
+  let result =
+    datetime.utc_now_with_precision(datetime.Millisecond, "Calendar.ISO")
+  case result {
+    Ok(dt) -> {
+      dt.time_zone |> should.equal("Etc/UTC")
+      { dt.year >= 2024 } |> should.equal(True)
+    }
+    Error(_) -> panic as "Expected Ok"
+  }
+}
+
+// now tests
+
+pub fn now_utc_test() {
+  let result = datetime.now("Etc/UTC", "UTC", 0, 0)
+  case result {
+    Ok(dt) -> {
+      dt.time_zone |> should.equal("Etc/UTC")
+      dt.zone_abbr |> should.equal("UTC")
+      { dt.year >= 2024 } |> should.equal(True)
+    }
+    Error(_) -> panic as "Expected Ok for now with UTC"
+  }
+}
+
 import calendar/naive_datetime

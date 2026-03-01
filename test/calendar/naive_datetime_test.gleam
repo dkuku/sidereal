@@ -1745,3 +1745,202 @@ pub fn from_erl_unchecked_test() {
   ndt.year |> should.equal(2024)
   ndt.hour |> should.equal(12)
 }
+
+// to_iso8601_with_format tests
+
+pub fn to_iso8601_with_format_extended_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new_simple(
+      2024,
+      6,
+      15,
+      14,
+      30,
+      45,
+    ))
+  let result = naive_datetime.to_iso8601_with_format(ndt, iso.Extended)
+  result |> should.equal("2024-06-15T14:30:45")
+}
+
+pub fn to_iso8601_with_format_basic_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new_simple(
+      2024,
+      6,
+      15,
+      14,
+      30,
+      45,
+    ))
+  let result = naive_datetime.to_iso8601_with_format(ndt, iso.Basic)
+  result |> should.equal("20240615T143045")
+}
+
+pub fn to_iso8601_with_format_extended_microseconds_test() {
+  let ndt = case
+    naive_datetime.new(2024, 6, 15, 14, 30, 45, #(123_456, 6), "Calendar.ISO")
+  {
+    Ok(n) -> n
+    Error(_) -> panic as "Expected Ok"
+  }
+  let result = naive_datetime.to_iso8601_with_format(ndt, iso.Extended)
+  result |> should.equal("2024-06-15T14:30:45.123456")
+}
+
+// add tests
+
+pub fn add_seconds_unit_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new_simple(
+      2024,
+      1,
+      1,
+      0,
+      0,
+      0,
+    ))
+  let result = naive_datetime.add(ndt, 3600, time.Second)
+  result.hour |> should.equal(1)
+  result.minute |> should.equal(0)
+}
+
+pub fn add_milliseconds_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new_simple(
+      2024,
+      1,
+      1,
+      0,
+      0,
+      0,
+    ))
+  let result = naive_datetime.add(ndt, 5_000_000, time.Millisecond)
+  // 5,000,000 ms = 5000 seconds = 1h 23m 20s
+  result.hour |> should.equal(1)
+  result.minute |> should.equal(23)
+  result.second |> should.equal(20)
+}
+
+// add_with_validation tests
+
+pub fn add_with_validation_valid_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new_simple(
+      2024,
+      1,
+      1,
+      12,
+      0,
+      0,
+    ))
+  let result = naive_datetime.add_with_validation(ndt, 30, time.Second)
+  case result {
+    Ok(n) -> {
+      n.hour |> should.equal(12)
+      n.minute |> should.equal(0)
+      n.second |> should.equal(30)
+    }
+    Error(_) -> panic as "Expected Ok"
+  }
+}
+
+pub fn add_with_validation_microseconds_test() {
+  let ndt =
+    test_helpers.unwrap_naive_datetime(naive_datetime.new_simple(
+      2024,
+      1,
+      1,
+      12,
+      0,
+      0,
+    ))
+  let result =
+    naive_datetime.add_with_validation(ndt, 500_000, time.Microsecond)
+  case result {
+    Ok(n) -> {
+      n.hour |> should.equal(12)
+      n.second |> should.equal(0)
+      let #(ms, _) = n.microsecond
+      ms |> should.equal(500_000)
+    }
+    Error(_) -> panic as "Expected Ok"
+  }
+}
+
+// utc_now tests
+
+pub fn utc_now_ndt_test() {
+  let result = naive_datetime.utc_now()
+  case result {
+    Ok(ndt) -> {
+      { ndt.year >= 2024 } |> should.equal(True)
+      ndt.calendar |> should.equal("Calendar.ISO")
+      { ndt.hour >= 0 && ndt.hour <= 23 } |> should.equal(True)
+    }
+    Error(_) -> panic as "Expected Ok for utc_now"
+  }
+}
+
+pub fn utc_now_with_precision_ndt_test() {
+  let result =
+    naive_datetime.utc_now_with_precision(time.Second, "Calendar.ISO")
+  case result {
+    Ok(ndt) -> {
+      let #(ms, precision) = ndt.microsecond
+      ms |> should.equal(0)
+      precision |> should.equal(0)
+    }
+    Error(_) -> panic as "Expected Ok"
+  }
+}
+
+// local_now_with_calendar test
+
+pub fn local_now_with_calendar_test() {
+  let result = naive_datetime.local_now_with_calendar("Custom.Cal")
+  case result {
+    Ok(ndt) -> {
+      ndt.calendar |> should.equal("Custom.Cal")
+      { ndt.year >= 2024 } |> should.equal(True)
+    }
+    Error(_) -> panic as "Expected Ok"
+  }
+}
+
+// today_with_time tests
+
+pub fn today_with_time_test() {
+  let result = naive_datetime.today_with_time(14, 30, 0)
+  case result {
+    Ok(ndt) -> {
+      { ndt.year >= 2024 } |> should.equal(True)
+      ndt.hour |> should.equal(14)
+      ndt.minute |> should.equal(30)
+      ndt.second |> should.equal(0)
+      ndt.calendar |> should.equal("Calendar.ISO")
+    }
+    Error(_) -> panic as "Expected Ok"
+  }
+}
+
+pub fn today_with_time_invalid_test() {
+  let result = naive_datetime.today_with_time(25, 0, 0)
+  case result {
+    Ok(_) -> panic as "Expected Error for invalid hour"
+    Error(_) -> Nil
+  }
+}
+
+pub fn today_with_time_and_calendar_test() {
+  let result =
+    naive_datetime.today_with_time_and_calendar(8, 0, 0, #(0, 0), "Custom.Cal")
+  case result {
+    Ok(ndt) -> {
+      ndt.hour |> should.equal(8)
+      ndt.calendar |> should.equal("Custom.Cal")
+    }
+    Error(_) -> panic as "Expected Ok"
+  }
+}
+
+import calendar/iso
